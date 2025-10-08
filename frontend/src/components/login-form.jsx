@@ -2,7 +2,7 @@ import { Button } from "../components/ui/button"
 import { useState, useEffect } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 
-
+const backend_url='http://localhost:3000';
 //google login 
 export function LoginForm() {
   //states to hangle form
@@ -60,7 +60,7 @@ export function LoginForm() {
     setLoading(true)
 
     try {
-      const response = await fetch(`http://localhost:3000/api/emailauth/login`, {
+      const response = await fetch(backend_url+`/api/emailauth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

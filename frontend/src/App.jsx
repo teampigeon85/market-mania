@@ -7,6 +7,7 @@ import {
 
 import HomePage from "./pages/homepage"
 import LoginPage from "./pages/loginpage"
+import RegisterPage from "./pages/RegisterPage"
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
       </Routes>
     </Router>
   )
