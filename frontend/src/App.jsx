@@ -4,7 +4,7 @@ import {
   Routes,
   Route,
 } from "react-router-dom"
-
+import GameArena from "./pages/GameArena"
 import HomePage from "./pages/homepage"
 import LoginPage from "./pages/loginpage"
 import RegisterPage from "./pages/RegisterPage"
@@ -17,6 +17,7 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/user-home" element={<UserHomePage />} />
+         <Route path="/game/:roomId" element={<GameArena />} />
       </Routes>
     </Router>
   )

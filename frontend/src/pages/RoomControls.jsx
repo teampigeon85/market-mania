@@ -1,11 +1,18 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import CreateRoom from "./CreateRoom";
+import GameArena from "./GameArena";
 const RoomControls = () => {
   const [roomCode, setRoomCode] = useState("");
-
+  const navigate = useNavigate();
   const handleJoin = () => {
-    console.log("Joining room:", roomCode);
+   if (!roomCode) {
+      alert("Enter room code!");
+      return;
+    }
+    // Navigate to GameArena with roomId
+    navigate(`/game/${roomCode}`);
   };
 
   const handleCreate = () => {
