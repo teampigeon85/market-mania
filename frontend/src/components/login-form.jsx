@@ -68,8 +68,7 @@ if (userData) {
         throw new Error(data.message || data.error || 'Login failed');
       }
 
-      // Store token in localStorage
-      localStorage.setItem('token', data.token);
+      
       
       // Store user data
       localStorage.setItem('user', JSON.stringify(data.user));
