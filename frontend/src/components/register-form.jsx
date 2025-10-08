@@ -1,52 +1,58 @@
-import { Button } from "../components/ui/button"
-import { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { Button } from "../components/ui/button";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
-const backend_url = 'http://localhost:3000'
+const backend_url = 'http://localhost:3000';
 
 export function RegisterForm({ className, ...props }) {
-  const [full_name, setFullName] = useState("")
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [error, setError] = useState("")
-  const [validationErrors, setValidationErrors] = useState([])
-  const [loading, setLoading] = useState(false)
-  const navigate = useNavigate()
+  const [full_name, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [validationErrors, setValidationErrors] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setError("")
-    setValidationErrors([])
-    setLoading(true)
+    e.preventDefault();
+    setError("");
+    setValidationErrors([]);
+    setLoading(true);
 
     try {
       const response = await fetch(`${backend_url}/api/emailauth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ full_name, email, password }),
-      })
+      });
 
-      const data = await response.json()
+      const data = await response.json();
 
       if (!response.ok) {
-        if (data.details) setValidationErrors(data.details)
-        else throw new Error(data.error || "Registration failed")
-        return
+        if (data.details) setValidationErrors(data.details);
+        else throw new Error(data.error || "Registration failed");
+        return;
       }
 
-      // ✅ Registration successful
-      alert("Registration successful!")
-      navigate("/login")
+      // ✅ Registration successful, automatically log in the user
+      const user = data.user; // Backend must return created user object
+
+      // Store user info in localStorage
+      localStorage.setItem("user", JSON.stringify(user));
+
+      // Redirect to user home page
+      navigate("/user-home");
+
     } catch (err) {
-      setError(err.message || "Something went wrong, please try again.")
+      setError(err.message || "Something went wrong, please try again.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleGoogleSignUp = () => {
-    window.location.href = `${backend_url}/api/googleauth/google`
-  }
+    window.location.href = `${backend_url}/api/googleauth/google`;
+  };
 
   return (
     <div className="max-w-md mx-auto mt-8 p-6 bg-white rounded-lg shadow-md">
