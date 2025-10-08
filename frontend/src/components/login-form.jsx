@@ -23,32 +23,25 @@ export function LoginForm() {
       return;
     }
     // Check for successful OAuth login
-    const token = params.get('token')
-    const userData = params.get('user')
-    console.log(token);
-    console.log(userData);
     console.log("log from  efect");
-    if (token && userData) {
-      try {
-        console.log('Received token and user data from OAuth');
-        const user = JSON.parse(decodeURIComponent(userData))
-        console.log('Parsed user data:', user);
-        
-        // Store authentication data
-        localStorage.setItem('token', token)
-        localStorage.setItem('user', JSON.stringify(user))
-       
-        // Go to userhome
-        const redirectUrl = '/user-home';
-           
-        // Force a page reload to ensure all components update
-       navigate(redirectUrl);
-    console.log(redirectUrl);
-      } catch (err) {
-        console.error('Failed to parse user data:', err)
-        setError('Authentication failed. Please try again.')
-      }
-    }
+   const userData = params.get('user')
+if (userData) {
+  try {
+    const user = JSON.parse(decodeURIComponent(userData))
+    console.log('Parsed user data:', user);
+
+    // Store user data locally
+    localStorage.setItem('user', JSON.stringify(user))
+
+    // Redirect after login
+    const redirectUrl = '/user-home'
+    navigate(redirectUrl)
+  } catch (err) {
+    console.error('Failed to parse user data:', err)
+    setError('Authentication failed. Please try again.')
+  }
+}
+
   }, [location])
 
   //email submit 
@@ -103,7 +96,7 @@ export function LoginForm() {
     
     console.log('Initiating Google OAuth login');
     // Redirect to Google OAuth endpoint
-    window.location.href = `/api/googleauth/google`
+    window.location.href = backend_url+`/api/googleauth/google`
   }
 
   return (

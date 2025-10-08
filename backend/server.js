@@ -3,11 +3,13 @@ import helmet from "helmet";
 import morgan from "morgan";
 import cors from "cors";
 import dotenv from "dotenv";
+import passport from "passport";
+import session from 'express-session';
 
 
-//import googleauthRoutes from "./routes/googleauthRoutes.js";
+import googleauthRoutes from "./routes/googleauthRoutes.js";
 import emailauthRoutes from "./routes/emailauthRoutes.js";
-
+import { configurePassport } from "./controllers/googleauthControllers.js";
 
 
 
@@ -19,9 +21,22 @@ dotenv.config();
 const app= express();
 
 
+configurePassport();
+
 initialiseDatabase();
 
+//sessions
 
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'random string',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false } // set true only if using https
+}));
+
+// Initialize Passport
+app.use(passport.initialize());
+app.use(passport.session());
 
 
 // JSON request parsing
@@ -34,6 +49,9 @@ app.use(
             credentials: true,
         })
     );
+
+
+
 
 // Helmet for security
 app.use(helmet());
@@ -53,7 +71,7 @@ app.get("/",(req,res)=>{
 
 
 // Authentication routes
-//app.use("/api/googleauth", googleauthRoutes);
+app.use("/api/googleauth", googleauthRoutes);
 app.use("/api/emailauth", emailauthRoutes);
 
 
