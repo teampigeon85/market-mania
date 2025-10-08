@@ -44,7 +44,30 @@ app.get("/",(req,res)=>{
 
 app.use("/api/testRoutes",testRoutes);
 
+// 🧩 Test Route 2 — Login (dummy)
+app.post("/api/emailauth/login", (req, res) => {
+  console.log("✅ POST /api/emailauth/login called");
+  console.log("📩 Request body:", req.body);
 
+  const { email, password } = req.body;
+
+  if (email === "test@gmail.com" && password === "123456") {
+    console.log("✅ Valid credentials received");
+    return res.json({
+      token: "dummy-jwt-token",
+      user: { id: 1, name: "Test User", email }
+    });
+  } else {
+    console.log("❌ Invalid credentials");
+    return res.status(401).json({ message: "Invalid email or password" });
+  }
+});
+
+// 🧩 Test Route 3 — Google Login (dummy)
+app.get("/api/googleauth/google", (req, res) => {
+  console.log("✅ Google OAuth endpoint hit");
+  res.json({ message: "Google login simulated" });
+});
 
 
 
