@@ -22,6 +22,17 @@ export async function initialiseDatabase () {
         createdAt TIMESTAMP DEFAULT NOW()
     )   
     `
+    await sql `
+    CREATE TABLE IF NOT EXISTS users (
+    user_id SERIAL PRIMARY KEY,
+    full_name VARCHAR(100) NOT NULL,
+    email VARCHAR(150) UNIQUE NOT NULL,
+    hashed_password TEXT,
+    google_id VARCHAR(100),
+    last_login TIMESTAMP DEFAULT NOW()
+);
+    `
+    
     //sample end 
 console.log("database intialised");
     }
