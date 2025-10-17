@@ -10,6 +10,7 @@ import session from 'express-session';
 import googleauthRoutes from "./routes/googleauthRoutes.js";
 import emailauthRoutes from "./routes/emailauthRoutes.js";
 import { configurePassport } from "./controllers/googleauthControllers.js";
+import gameRoutes from "./routes/gameRoutes.js";
 
 
 import { logoutUser } from "./controllers/userControllers.js";
@@ -74,6 +75,7 @@ app.get("/",(req,res)=>{
 app.use("/api/googleauth", googleauthRoutes);
 app.use("/api/emailauth", emailauthRoutes);
 
+app.use("/api/game",gameRoutes);
 app.post("/api/auth/logout",logoutUser);
 
 app.listen(PORT,()=>{
