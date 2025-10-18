@@ -1,14 +1,13 @@
-import React from "react"
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-} from "react-router-dom"
-import GameArena from "./pages/GameArena"
-import HomePage from "./pages/homepage"
-import LoginPage from "./pages/loginpage"
-import RegisterPage from "./pages/RegisterPage"
-import UserHomePage from "./pages/UserHomePage"
+import React from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+//import GameArena from "./pages/GameArena";
+import HomePage from "./pages/HomePage";
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
+import UserHomePage from "./pages/UserHomePage";
+import GameLobby from './pages/GameLobby'; // Make sure this path is correct
+import LobbyPage from './pages/LobbyPage';
+import GameArena from './pages/GameArena';
 function App() {
   return (
     <Router>
@@ -17,10 +16,18 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/user-home" element={<UserHomePage />} />
-         <Route path="/game/:gameId" element={<GameArena />} />
+        
+        {/* New Route for creating/joining a game */}
+     {/*}   <Route path="/lobby" element={<GameLobby />} />*/}
+
+
+ <Route path="/lobby/:roomId" element={<LobbyPage />} />
+        <Route path="/game/:gameId" element={<GameArena />} />
+        {/* This route remains the same, but it will now get its data from the lobby */}
+       {/* <Route path="/game/:gameId" element={<GameArena />} /> */}
       </Routes>
     </Router>
-  )
+  );
 }
 
-export default App
+export default App;

@@ -20,6 +20,7 @@ function HomePage() {
           <div className="flex gap-4">
             <Button asChild>
               <a href="/login">Login</a>
+              
             </Button>
             <Button variant="outline" asChild>
               <a href="/register">Register</a>

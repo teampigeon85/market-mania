@@ -2,22 +2,70 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import CreateRoom from "./CreateRoom";
-import GameArena from "./GameArena";
+
 const RoomControls = () => {
   const [roomCode, setRoomCode] = useState("");
   const navigate = useNavigate();
-  const handleJoin = () => {
-   if (!roomCode) {
-      alert("Enter room code!");
+
+  const handleJoin = async () => {
+    const backend_url = 'http://localhost:3000';
+    if (!roomCode.trim()) {
+      alert("Enter a valid room code!");
       return;
     }
-    // Navigate to GameArena with roomId
-    navigate(`/game/${roomCode}`);
+    const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+    const user_id = storedUser.user_id;
+    
+    try {
+      // Step 1: Check if the room exists and the user can join.
+      const res = await fetch(`${backend_url}/api/game/join`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roomID: roomCode.trim(), userId: user_id }),
+      });
+
+      const data = await res.json();
+      const roomId = roomCode.trim();
+      
+      if (res.ok && data.exists) {
+        // Step 2: Navigate to the lobby using hardcoded room settings for now.
+        // As requested, this section uses temporary data instead of fetching it.
+        const roomData = {
+          createdBy: 6,
+          initialMoney: "50000035467",
+          maxPlayers: "5",
+          name: "sdf",
+          numRounds: "25",
+          numStocks: "10",
+          roomID: "UT6RPJ",
+          roundTime: "8"
+        };
+        
+        // Directly navigate with the hardcoded settings.
+        navigate(`/lobby/${roomId}`, {
+          state: {
+            roomSettings: roomData,
+            isHost: false // A joining player is never the host
+          }
+        });
+
+      } else {
+        alert("❌ Invalid Room Code! Room does not exist or you cannot join.");
+      }
+    } catch (error) {
+      console.error("Error joining room:", error);
+      alert("Server error while joining room.");
+    }
   };
 
-  const handleCreate = () => {
-    console.log("Creating new room");
-    // add your create room logic here
+  // Handle room creation - navigate to lobby
+  const handleRoomCreated = (roomSettings, roomId) => {
+    navigate(`/lobby/${roomId}`, {
+      state: {
+        roomSettings: roomSettings,
+        isHost: true
+      }
+    });
   };
 
   return (
@@ -28,14 +76,14 @@ const RoomControls = () => {
           type="text"
           placeholder="Enter room code"
           value={roomCode}
-          onChange={(e) => setRoomCode(e.target.value)}
+          onChange={(e) => setRoomCode(e.target.value.toUpperCase())} // Ensure code is uppercase
           className="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <Button onClick={handleJoin}>Join Room</Button>
       </div>
 
       {/* Right part: Create Room button */}
-        <CreateRoom />
+      <CreateRoom onRoomCreated={handleRoomCreated} />
     </div>
   );
 };

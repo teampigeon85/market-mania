@@ -76,6 +76,8 @@ app.use("/api/googleauth", googleauthRoutes);
 app.use("/api/emailauth", emailauthRoutes);
 
 app.use("/api/game",gameRoutes);
+
+
 app.post("/api/auth/logout",logoutUser);
 
 app.listen(PORT,()=>{
