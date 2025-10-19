@@ -30,21 +30,11 @@ const RoomControls = () => {
       if (res.ok && data.exists) {
         // Step 2: Navigate to the lobby using hardcoded room settings for now.
         // As requested, this section uses temporary data instead of fetching it.
-        const roomData = {
-          createdBy: 6,
-          initialMoney: "50000035467",
-          maxPlayers: "5",
-          name: "sdf",
-          numRounds: "25",
-          numStocks: "10",
-          roomID: "UT6RPJ",
-          roundTime: "8"
-        };
-        
+     
         // Directly navigate with the hardcoded settings.
         navigate(`/lobby/${roomId}`, {
           state: {
-            roomSettings: roomData,
+            roomSettings: data.roomData,
             isHost: false // A joining player is never the host
           }
         });

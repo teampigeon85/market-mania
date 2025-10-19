@@ -77,12 +77,31 @@ export const joinGame = async (req, res) => {
       `;
     }
 
-    res.status(200).json({ exists: true, room: rooms[0] });
+    // 3️⃣ Extract formatted data
+    const room = rooms[0];
+    const roomData = {
+      createdBy: room.created_by,
+      initialMoney: String(room.initial_money),
+      maxPlayers: String(room.max_players),
+      name: room.room_name,
+      numRounds: String(room.num_rounds),
+      numStocks: String(room.num_stocks),
+      roomID: room.room_id,
+      roundTime: String(room.round_time)
+    };
+
+    // ✅ Respond in frontend-compatible format
+    res.status(200).json({
+      exists: true,
+      roomData
+    });
+
   } catch (err) {
     console.error("Error joining room:", err);
     res.status(500).json({ message: "Server error while joining room" });
   }
 };
+
 
 // ✅ Add chat message to a game
 export const addChatMessage = async (req, res) => {
