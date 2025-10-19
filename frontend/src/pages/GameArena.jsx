@@ -5,6 +5,8 @@ import COMPANY_EVENTS from "../companyEvents.json";
 import GENERAL_EVENTS from "../generalEvents.json";
 import HISTORICAL_EVENTS from "../eventsforall.json";
 import ChatPage from './ChatPage';
+import RoundLeaderboard from '../components/RoundLeaderboard';
+import FinalLeaderboard from '../components/FinalLeaderboard';
 
 // --- Helper function to shuffle an array ---
 const shuffleArray = (array) => {
@@ -208,6 +210,12 @@ export default function GameArena() {
   const [quantity, setQuantity] = useState({});
   const [feedback, setFeedback] = useState({ message: "", type: "" });
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isRoundLeaderboardOpen, setIsRoundLeaderboardOpen] = useState(false);
+  const [isFinalLeaderboardOpen, setIsFinalLeaderboardOpen] = useState(false);
+  const [isSubmittingScore, setIsSubmittingScore] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [gameCompleted, setGameCompleted] = useState(false);
+  const [countdown, setCountdown] = useState(0);
 
   // 3. Destructure the settings received from the router, NOT the defaults.
   const { numRounds, roundTime, initialMoney, numStocks, name } = roomSettings;
@@ -219,6 +227,123 @@ export default function GameArena() {
   const {
     round, money, stocks, holdings, notices, netWorth, portfolioValue, buyStock, sellStock, showRoundEndModal,
   } = useGameLogic(INITIAL_MONEY, ROUND_DURATION_MS, TOTAL_ROUNDS, parseInt(numStocks, 10));
+
+  // Get current user ID from localStorage
+  useEffect(() => {
+    const userString = localStorage.getItem("user");
+    if (userString) {
+      const user = JSON.parse(userString);
+      setCurrentUserId(user.user_id);
+    }
+  }, []);
+
+  // Submit score after each round
+  const submitScore = async (roundNumber) => {
+    if (!currentUserId || !gameId) {
+      console.error('Missing userId or gameId:', { currentUserId, gameId });
+      return;
+    }
+    
+    setIsSubmittingScore(true);
+    const scoreData = {
+      userId: currentUserId,
+      roundNumber: roundNumber,
+      cashAmount: money,
+      portfolioValue: portfolioValue,
+      netWorth: netWorth
+    };
+    
+    console.log('Submitting score:', scoreData);
+    
+    try {
+      const response = await fetch(`http://localhost:3000/api/game/${gameId}/score`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(scoreData),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to submit score: ${response.status} - ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('Score submitted successfully for round', roundNumber, result);
+    } catch (error) {
+      console.error('Error submitting score:', error);
+      showFeedback(`Failed to submit score: ${error.message}`, 'error');
+    } finally {
+      setIsSubmittingScore(false);
+    }
+  };
+
+  // Submit final score and show final leaderboard
+  const submitFinalScore = async () => {
+    if (!currentUserId || !gameId) return;
+    
+    setIsSubmittingScore(true);
+    try {
+      const response = await fetch(`http://localhost:3000/api/game/${gameId}/final-score`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: currentUserId,
+          finalNetWorth: netWorth
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to submit final score');
+      }
+
+      const data = await response.json();
+      console.log('Final score submitted successfully');
+      setGameCompleted(true);
+      setIsFinalLeaderboardOpen(true);
+    } catch (error) {
+      console.error('Error submitting final score:', error);
+      showFeedback('Failed to submit final score', 'error');
+    } finally {
+      setIsSubmittingScore(false);
+    }
+  };
+
+  // Handle round completion
+  useEffect(() => {
+    if (showRoundEndModal && round <= TOTAL_ROUNDS) {
+      // Submit score for the completed round and wait for it to complete
+      const handleRoundEnd = async () => {
+        await submitScore(round);
+        
+        // Start countdown from 10 seconds
+        setCountdown(10);
+        const countdownInterval = setInterval(() => {
+          setCountdown((prev) => {
+            if (prev <= 1) {
+              clearInterval(countdownInterval);
+              setIsRoundLeaderboardOpen(true);
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      };
+      
+      handleRoundEnd();
+    }
+  }, [showRoundEndModal, round]);
+
+  // Handle game completion
+  useEffect(() => {
+    if (round > TOTAL_ROUNDS && !gameCompleted) {
+      // Submit final score
+      submitFinalScore();
+    }
+  }, [round, gameCompleted]);
 
   const handleQuantityChange = (stock, val) => {
     if (/^\d*$/.test(val)) setQuantity({ ...quantity, [stock]: val });
@@ -279,7 +404,13 @@ export default function GameArena() {
       {/* Main Area */}
       <main className="flex-1 p-6 flex flex-col gap-6">
         <div className="flex items-center justify-end gap-4">
-            <Button variant="secondary" onClick={() => { /* Add ranking logic later */ }}>🏆 Ranking</Button>
+            <Button 
+              variant="secondary" 
+              onClick={() => setIsRoundLeaderboardOpen(true)}
+              disabled={isSubmittingScore}
+            >
+              🏆 Round Leaderboard
+            </Button>
            <Button variant="secondary" onClick={() => setIsChatOpen(true)}>💬 Chat</Button>
         </div>
 
@@ -326,10 +457,57 @@ export default function GameArena() {
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 animate-fade-in">
           <div className="bg-white p-10 rounded-xl shadow-2xl text-center transform animate-scale-in">
             <h2 className="text-4xl font-bold text-indigo-700">Round {round} Completed!</h2>
-            <p className="mt-2 text-gray-600">Preparing for the next round...</p>
+            {isSubmittingScore ? (
+              <div className="mt-4">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+                <p className="mt-2 text-gray-600">Submitting score...</p>
+              </div>
+            ) : countdown > 0 ? (
+              <div className="mt-4">
+                <div className="text-6xl font-bold text-indigo-600 mb-2">{countdown}</div>
+                <p className="text-gray-600">Preparing leaderboard...</p>
+                <p className="text-sm text-gray-500 mt-2">Please wait while we process all scores</p>
+              </div>
+            ) : (
+              <p className="mt-2 text-gray-600">Preparing leaderboard...</p>
+            )}
           </div>
         </div>
       )}
+
+      {/* Game completion modal */}
+      {round > TOTAL_ROUNDS && !gameCompleted && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 animate-fade-in">
+          <div className="bg-white p-10 rounded-xl shadow-2xl text-center transform animate-scale-in">
+            <h2 className="text-4xl font-bold text-green-700">🎉 Game Complete! 🎉</h2>
+            {isSubmittingScore ? (
+              <div className="mt-4">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
+                <p className="mt-2 text-gray-600">Calculating final results...</p>
+              </div>
+            ) : (
+              <p className="mt-2 text-gray-600">Preparing final leaderboard...</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Round Leaderboard */}
+      <RoundLeaderboard
+        gameId={gameId}
+        roundNumber={round}
+        isOpen={isRoundLeaderboardOpen}
+        onClose={() => setIsRoundLeaderboardOpen(false)}
+        userId={currentUserId}
+      />
+
+      {/* Final Leaderboard */}
+      <FinalLeaderboard
+        gameId={gameId}
+        isOpen={isFinalLeaderboardOpen}
+        userId={currentUserId}
+      />
+
       <ChatPage
         gameId={gameId}
         chatOpen={isChatOpen}

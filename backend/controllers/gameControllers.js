@@ -147,3 +147,146 @@ export const getGameChats = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error: Failed to fetch chats." });
   }
 };
+
+// ✅ Submit player score after each round
+export const submitPlayerScore = async (req, res) => {
+  try {
+    const { gameId } = req.params;
+    const { userId, roundNumber, cashAmount, portfolioValue, netWorth } = req.body;
+
+    if (!gameId || !userId || !roundNumber || cashAmount === undefined || portfolioValue === undefined || netWorth === undefined) {
+      return res.status(400).json({ error: "Missing required fields." });
+    }
+
+    // Insert or update player score for this round
+    await sql`
+      INSERT INTO player_scores (game_id, user_id, round_number, cash_amount, portfolio_value, net_worth)
+      VALUES (${gameId}, ${userId}, ${roundNumber}, ${cashAmount}, ${portfolioValue}, ${netWorth})
+      ON CONFLICT (game_id, user_id, round_number) 
+      DO UPDATE SET 
+        cash_amount = ${cashAmount},
+        portfolio_value = ${portfolioValue},
+        net_worth = ${netWorth},
+        submitted_at = NOW()
+    `;
+
+    res.status(200).json({ success: true, message: "Score submitted successfully." });
+  } catch (error) {
+    console.error("Error in submitPlayerScore:", error);
+    res.status(500).json({ error: "Internal Server Error: Failed to submit score." });
+  }
+};
+
+// ✅ Get round leaderboard
+export const getRoundLeaderboard = async (req, res) => {
+  try {
+    const { gameId, roundNumber } = req.params;
+
+    if (!gameId || !roundNumber) {
+      return res.status(400).json({ error: "Game ID and round number are required." });
+    }
+
+    const leaderboard = await sql`
+      SELECT 
+        ps.user_id,
+        u.full_name as username,
+        ps.cash_amount,
+        ps.portfolio_value,
+        ps.net_worth,
+        ps.submitted_at
+      FROM player_scores ps
+      JOIN users u ON ps.user_id = u.user_id
+      WHERE ps.game_id = ${gameId} AND ps.round_number = ${roundNumber}
+      ORDER BY ps.net_worth DESC
+    `;
+
+    console.log(leaderboard+"leaderboard");
+
+    res.status(200).json(leaderboard);
+  } catch (error) {
+    console.error("Error in getRoundLeaderboard:", error+"error");
+    res.status(500).json({ error: "Internal Server Error: Failed to fetch leaderboard." });
+  }
+};
+// ✅ Submit final score and get final leaderboard
+export const submitFinalScore = async (req, res) => {
+  try {
+    const { gameId } = req.params;
+    const { userId, finalNetWorth } = req.body;
+
+    if (!gameId || !userId || finalNetWorth === undefined) {
+      return res.status(400).json({ error: "Missing required fields." });
+    }
+
+    // Insert final score
+    await sql`
+      INSERT INTO final_scores (game_id, user_id, final_net_worth)
+      VALUES (${gameId}, ${userId}, ${finalNetWorth})
+      ON CONFLICT (game_id, user_id) 
+      DO UPDATE SET 
+        final_net_worth = ${finalNetWorth},
+        game_completed_at = NOW()
+    `;
+
+    // Get final leaderboard with rankings
+    const finalLeaderboard = await sql`
+      SELECT 
+        fs.user_id,
+        u.full_name as username,
+        fs.final_net_worth,
+        fs.game_completed_at,
+        ROW_NUMBER() OVER (ORDER BY fs.final_net_worth DESC) as rank
+      FROM final_scores fs
+      JOIN users u ON fs.user_id = u.user_id
+      WHERE fs.game_id = ${gameId}
+      ORDER BY fs.final_net_worth DESC
+    `;
+
+    // Update the rank in the database
+    for (const player of finalLeaderboard) {
+      await sql`
+        UPDATE final_scores 
+        SET final_rank = ${player.rank}
+        WHERE game_id = ${gameId} AND user_id = ${player.user_id}
+      `;
+    }
+
+    res.status(200).json({ 
+      success: true, 
+      message: "Final score submitted successfully.",
+      leaderboard: finalLeaderboard
+    });
+  } catch (error) {
+    console.error("Error in submitFinalScore:", error);
+    res.status(500).json({ error: "Internal Server Error: Failed to submit final score." });
+  }
+};
+
+// ✅ Get final leaderboard
+export const getFinalLeaderboard = async (req, res) => {
+  try {
+    const { gameId } = req.params;
+
+    if (!gameId) {
+      return res.status(400).json({ error: "Game ID is required." });
+    }
+
+    const finalLeaderboard = await sql`
+      SELECT 
+        fs.user_id,
+        u.full_name as username,
+        fs.final_net_worth,
+        fs.final_rank,
+        fs.game_completed_at
+      FROM final_scores fs
+      JOIN users u ON fs.user_id = u.user_id
+      WHERE fs.game_id = ${gameId}
+      ORDER BY fs.final_rank ASC
+    `;
+
+    res.status(200).json(finalLeaderboard);
+  } catch (error) {
+    console.error("Error in getFinalLeaderboard:", error);
+    res.status(500).json({ error: "Internal Server Error: Failed to fetch final leaderboard." });
+  }
+};
