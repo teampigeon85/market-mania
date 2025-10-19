@@ -159,6 +159,7 @@ export const submitPlayerScore = async (req, res) => {
     }
 
     // Insert or update player score for this round
+    console.log(roundNumber+" room numb4 "+netWorth);
     await sql`
       INSERT INTO player_scores (game_id, user_id, round_number, cash_amount, portfolio_value, net_worth)
       VALUES (${gameId}, ${userId}, ${roundNumber}, ${cashAmount}, ${portfolioValue}, ${netWorth})
@@ -181,12 +182,13 @@ export const submitPlayerScore = async (req, res) => {
 export const getRoundLeaderboard = async (req, res) => {
   try {
     const { gameId, roundNumber } = req.params;
-
+    console.log(roundNumber+"from backend")
     if (!gameId || !roundNumber) {
       return res.status(400).json({ error: "Game ID and round number are required." });
     }
+    console.log("before feating leaderboard")
 
-    const leaderboard = await sql`
+    let leaderboard = await sql`
       SELECT 
         ps.user_id,
         u.full_name as username,
@@ -199,7 +201,21 @@ export const getRoundLeaderboard = async (req, res) => {
       WHERE ps.game_id = ${gameId} AND ps.round_number = ${roundNumber}
       ORDER BY ps.net_worth DESC
     `;
-
+    if(leaderboard.length==0) {
+      leaderboard = await sql`
+      SELECT 
+        ps.user_id,
+        u.full_name as username,
+        ps.cash_amount,
+        ps.portfolio_value,
+        ps.net_worth,
+        ps.submitted_at
+      FROM player_scores ps
+      JOIN users u ON ps.user_id = u.user_id
+      WHERE ps.game_id = ${gameId} AND ps.round_number = ${roundNumber-1}
+      ORDER BY ps.net_worth DESC
+    `;
+    }
     console.log(leaderboard+"leaderboard");
 
     res.status(200).json(leaderboard);
