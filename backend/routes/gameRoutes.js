@@ -7,7 +7,9 @@ import {
   submitPlayerScore,
   getRoundLeaderboard,
   submitFinalScore,
-  getFinalLeaderboard
+  getFinalLeaderboard,
+  getGameLobby,
+  getGameStocks
 } from '../controllers/gameControllers.js';
 
 const router = express.Router();
@@ -25,5 +27,10 @@ router.post('/:gameId/score', submitPlayerScore);
 router.get('/:gameId/leaderboard/:roundNumber', getRoundLeaderboard);
 router.post('/:gameId/final-score', submitFinalScore);
 router.get('/:gameId/final-leaderboard', getFinalLeaderboard);
+
+// Game data routes
+router.get('/:gameId/lobby', getGameLobby);
+router.get('/:gameId/stocks', getGameStocks);
+
 
 export default router;

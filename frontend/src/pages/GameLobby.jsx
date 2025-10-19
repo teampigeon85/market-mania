@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { io } from 'socket.io-client';
 
 const Button = ({ children, onClick, variant, className = '', disabled, ...props }) => {
   const base = "px-6 py-3 rounded-lg font-semibold text-white shadow-md transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100";
@@ -20,12 +21,48 @@ const CardContent = ({ children }) => <div className="p-6">{children}</div>;
 
 export default function GameLobby({ roomSettings, roomID, onStartGame, onNavigateToGame }) {
   const [timeLeft, setTimeLeft] = useState(120); // 2 minutes in seconds
-  const [players, setPlayers] = useState([
-    { id: 1, name: "Host (You)", isReady: true, isHost: true }
-  ]);
+  const [players, setPlayers] = useState([]);
+  const [socket, setSocket] = useState(null);
+  const [isHost, setIsHost] = useState(false);
+
 
   useEffect(() => {
-    if (timeLeft <= 0) {
+    const userString = localStorage.getItem("user");
+    if (userString) {
+        const user = JSON.parse(userString);
+        if (user.user_id === roomSettings.createdBy) {
+            setIsHost(true);
+        }
+    }
+
+    const newSocket = io('http://localhost:3000');
+    setSocket(newSocket);
+
+    newSocket.emit('join-lobby', roomID);
+
+    const fetchLobbyData = async () => {
+      const res = await fetch(`http://localhost:3000/api/game/${roomID}/lobby`);
+      const data = await res.json();
+      setPlayers(data.players.map(p => ({id: p.user_id, name: p.full_name, isReady: true, isHost: p.user_id === roomSettings.createdBy})));
+    }
+    fetchLobbyData();
+    
+    newSocket.on('player-joined', fetchLobbyData);
+
+    newSocket.on('game-started', () => {
+        onStartGame(roomSettings, roomID)
+    });
+
+    return () => {
+        newSocket.off('player-joined', fetchLobbyData);
+        newSocket.off('game-started');
+        newSocket.disconnect()
+    };
+  }, [roomID, onStartGame, roomSettings]);
+
+
+  useEffect(() => {
+    if (timeLeft <= 0 && isHost) {
       // Auto-start when timer reaches 0
       handleStartGame();
       return;
@@ -36,11 +73,11 @@ export default function GameLobby({ roomSettings, roomID, onStartGame, onNavigat
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [timeLeft]);
+  }, [timeLeft, isHost]);
 
   const handleStartGame = () => {
-    if (onStartGame) {
-      onStartGame(roomSettings, roomID);
+    if (socket && isHost) {
+        socket.emit('start-game', roomID);
     }
   };
 
@@ -149,15 +186,17 @@ export default function GameLobby({ roomSettings, roomID, onStartGame, onNavigat
             </div>
 
             {/* Start Button */}
-            <div className="flex justify-center">
-              <Button 
-                variant="success" 
-                onClick={handleStartGame}
-                className="text-lg px-12 py-4"
-              >
-                🚀 Start Game Now
-              </Button>
-            </div>
+            {isHost && (
+                <div className="flex justify-center">
+                    <Button 
+                        variant="success" 
+                        onClick={handleStartGame}
+                        className="text-lg px-12 py-4"
+                    >
+                        🚀 Start Game Now
+                    </Button>
+                </div>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -1,4 +1,16 @@
 import { sql } from "../config/initailiseDatabase.js";
+import ALL_COMPANIES from "../../frontend/src/Companysectors.json" with { type: "json" };
+//
+
+//
+const shuffleArray = (array) => {
+  const newArray = [...array];
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
+};
 
 export const createRoom = async (req, res) => {
   try {
@@ -34,8 +46,8 @@ console.log("ALL filelds corect");
 
     // 2️⃣ Insert into games table so participants can be added
     await sql`
-      INSERT INTO games (game_id, created_by_user_id, max_participants)
-      VALUES (${roomID}, ${createdBy}, ${maxPlayers})
+      INSERT INTO games (game_id, created_by_user_id)
+      VALUES (${roomID}, ${createdBy})
     `;
 
     // 3️⃣ Add creator to participants
@@ -43,6 +55,16 @@ console.log("ALL filelds corect");
       INSERT INTO game_participants (game_id, user_id) 
       VALUES (${roomID}, ${createdBy})
     `;
+
+    // 4️⃣ Select and insert stocks for the game
+    const selectedStocks = shuffleArray(ALL_COMPANIES).slice(0, numStocks);
+    for (const stock of selectedStocks) {
+      await sql`
+        INSERT INTO game_stocks (game_id, stock_name, price, pe_ratio, sectors, total_volume, volatility)
+        VALUES (${roomID}, ${stock.name}, ${stock.price}, ${stock.pe}, ${stock.sectors}, ${stock.totalVolume}, ${stock.volatility})
+      `;
+    }
+
 
     res.status(201).json({ success: true, roomID, message: "Room created successfully" });
   } catch (err) {
@@ -182,13 +204,11 @@ export const submitPlayerScore = async (req, res) => {
 export const getRoundLeaderboard = async (req, res) => {
   try {
     const { gameId, roundNumber } = req.params;
-    console.log(roundNumber+"from backend")
     if (!gameId || !roundNumber) {
       return res.status(400).json({ error: "Game ID and round number are required." });
     }
-    console.log("before feating leaderboard")
 
-    let leaderboard = await sql`
+    const leaderboard = await sql`
       SELECT 
         ps.user_id,
         u.full_name as username,
@@ -201,26 +221,10 @@ export const getRoundLeaderboard = async (req, res) => {
       WHERE ps.game_id = ${gameId} AND ps.round_number = ${roundNumber}
       ORDER BY ps.net_worth DESC
     `;
-    if(leaderboard.length==0) {
-      leaderboard = await sql`
-      SELECT 
-        ps.user_id,
-        u.full_name as username,
-        ps.cash_amount,
-        ps.portfolio_value,
-        ps.net_worth,
-        ps.submitted_at
-      FROM player_scores ps
-      JOIN users u ON ps.user_id = u.user_id
-      WHERE ps.game_id = ${gameId} AND ps.round_number = ${roundNumber-1}
-      ORDER BY ps.net_worth DESC
-    `;
-    }
-    console.log(leaderboard+"leaderboard");
 
     res.status(200).json(leaderboard);
   } catch (error) {
-    console.error("Error in getRoundLeaderboard:", error+"error");
+    console.error("Error in getRoundLeaderboard:", error);
     res.status(500).json({ error: "Internal Server Error: Failed to fetch leaderboard." });
   }
 };
@@ -306,3 +310,50 @@ export const getFinalLeaderboard = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error: Failed to fetch final leaderboard." });
   }
 };
+
+export const getGameLobby = async (req, res) => {
+  try {
+    const { gameId } = req.params;
+
+    if (!gameId) {
+      return res.status(400).json({ error: "Game ID is required." });
+    }
+
+    const players = await sql`
+      SELECT u.user_id, u.full_name
+      FROM users u
+      JOIN game_participants gp ON u.user_id = gp.user_id
+      WHERE gp.game_id = ${gameId}
+    `;
+
+    const room = await sql`
+      SELECT * FROM game_rooms WHERE room_id = ${gameId}
+    `;
+
+    res.status(200).json({ players, room: room[0] });
+  } catch (error) {
+    console.error("Error in getGameLobby:", error);
+    res.status(500).json({ error: "Internal Server Error: Failed to fetch lobby data." });
+  }
+}
+
+export const getGameStocks = async (req, res) => {
+  try {
+    const { gameId } = req.params;
+
+    if (!gameId) {
+      return res.status(400).json({ error: "Game ID is required." });
+    }
+
+    const stocks = await sql`
+      SELECT stock_name as name, price, pe_ratio as pe, sectors, total_volume, volatility
+      FROM game_stocks
+      WHERE game_id = ${gameId}
+    `;
+
+    res.status(200).json(stocks);
+  } catch (error) {
+    console.error("Error in getGameStocks:", error);
+    res.status(500).json({ error: "Internal Server Error: Failed to fetch game stocks." });
+  }
+}

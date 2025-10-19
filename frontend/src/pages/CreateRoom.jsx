@@ -122,10 +122,16 @@ export default function CreateRoom({ onRoomCreated }) {
   };
 
   const handleEnterLobby = () => {
-    // Call parent callback with the newly created room data and ID
+    // Get the current user's ID
+    const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+    const user_id = storedUser.user_id;
+
     if (onRoomCreated) {
-      onRoomCreated(roomData, roomID);
+      // Add the createdBy ID to the room settings object before navigating
+      const completeRoomSettings = { ...roomData, createdBy: user_id };
+      onRoomCreated(completeRoomSettings, roomID);
     }
+    
     setOpen(false);
     // Reset state for the next time the dialog is opened
     setRoomID("");

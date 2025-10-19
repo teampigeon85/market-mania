@@ -1,14 +1,49 @@
-import { neon } from "@neondatabase/serverless";
+// import { neon } from "@neondatabase/serverless";
+// import dotenv from "dotenv";
+
+// dotenv.config();
+
+// const { PGHOST, PGDATABASE, PGUSER, PGPASSWORD } = process.env;
+
+// //create connection using environamental varibles
+// export const sql = neon(
+//   `postgresql://${PGUSER}:${PGPASSWORD}@${PGHOST}/${PGDATABASE}?sslmode=require`
+// );
+import pkg from "pg";
 import dotenv from "dotenv";
 
 dotenv.config();
 
 const { PGHOST, PGDATABASE, PGUSER, PGPASSWORD } = process.env;
+const { Pool } = pkg;
 
-//create connection using environamental varibles
-export const sql = neon(
-  `postgresql://${PGUSER}:${PGPASSWORD}@${PGHOST}/${PGDATABASE}?sslmode=require`
-);
+// Create connection pool for local PostgreSQL
+const pool = new Pool({
+  host: PGHOST || "localhost",
+  database: PGDATABASE,
+  user: PGUSER,
+  password: PGPASSWORD,
+  port: 5432, // default port
+});
+
+// --- Wrapper to make `sql` behave like neon's tagged template ---
+export async function sql(strings, ...values) {
+  // Build query text like: SELECT * FROM users WHERE id = $1
+  const text = strings.reduce(
+    (prev, curr, i) => prev + curr + (i < values.length ? `$${i + 1}` : ""),
+    ""
+  );
+
+  const client = await pool.connect();
+  try {
+    const res = await client.query(text, values);
+    return res.rows;
+  } finally {
+    client.release();
+  }
+}
+
+
 
 export async function initialiseDatabase() {
   try {
@@ -96,6 +131,20 @@ export async function initialiseDatabase() {
         UNIQUE(game_id, user_id)
     );
     `;
+    // --- NEW: Added game_stocks table to store the stocks for each game ---
+    await sql`
+      CREATE TABLE IF NOT EXISTS game_stocks (
+        game_stock_id SERIAL PRIMARY KEY,
+        game_id VARCHAR(100) REFERENCES games(game_id) ON DELETE CASCADE,
+        stock_name VARCHAR(100) NOT NULL,
+        price DECIMAL(15,2) NOT NULL,
+        pe_ratio DECIMAL(10,2),
+        sectors TEXT[],
+        total_volume INTEGER,
+        volatility DECIMAL(5,4),
+        UNIQUE(game_id, stock_name)
+      );
+    `;
 
     //sample end
     console.log("database intialised");
@@ -103,4 +152,3 @@ export async function initialiseDatabase() {
     console.log("unable to intialise", error);
   }
 }
-
