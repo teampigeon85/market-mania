@@ -2,6 +2,7 @@ import React from "react";
 import { Button } from "./button"; // shadcn/ui Button
 import { Home, User, BookOpen, Info, Phone, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 export const Sidebar = () => {
   const navigate = useNavigate();
@@ -58,15 +59,22 @@ export const Sidebar = () => {
       <Button variant="ghost" className="flex items-center gap-2 mb-2"  onClick={handleHome}>
         <BookOpen size={18} /> UserHome
       </Button>
-      <Button variant="ghost" className="flex items-center gap-2 mb-2">
-        <Info size={18} /> About Us
-      </Button>
-      <Button variant="ghost" className="flex items-center gap-2 mb-2">
-        <Phone size={18} /> Contact Us
-      </Button>
-      <Button variant="ghost" className="flex items-center gap-2 mb-2">
-        <Home size={18} /> How to Play
-      </Button>
+     <Button asChild variant="ghost" className="flex items-center gap-2 mb-2">
+  <Link to="/about">
+    <Info size={18} /> About Us
+  </Link>
+</Button>
+
+<Button asChild variant="ghost" className="flex items-center gap-2 mb-2">
+  <Link to="/contact">
+    <Phone size={18} /> Contact Us
+  </Link>
+</Button>
+      <Button asChild variant="ghost" className="flex items-center gap-2 mb-2">
+  <Link to="/howto">
+    <Home size={18} /> How to Play
+  </Link>
+</Button>
 
       <Button
         variant="ghost"

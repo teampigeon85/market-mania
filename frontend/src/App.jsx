@@ -9,6 +9,9 @@ import GameLobby from './pages/GameLobby'; // Make sure this path is correct
 import LobbyPage from './pages/LobbyPage';
 import GameArena from './pages/GameArena';
 import ProfilePage from "./pages/ProfilePage";
+import  {HowToPlay}  from "./pages/Howtoplay";
+import  {ContactUs}  from "./pages/ContactUs";
+import  {AboutUs}  from "./pages/AboutUs";
 
 function App() {
   return (
@@ -19,6 +22,9 @@ function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/user-home" element={<UserHomePage />} />
         <Route path="/profile/" element={<ProfilePage />} />
+         <Route path="/about" element={<AboutUs />} />
+  <Route path="/contact" element={<ContactUs />} />
+  <Route path="/howto" element={<HowToPlay />} />
         {/* New Route for creating/joining a game */}
      {/*}   <Route path="/lobby" element={<GameLobby />} />*/}
 
