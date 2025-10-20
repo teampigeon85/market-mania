@@ -6,7 +6,11 @@ import { useNavigate } from "react-router-dom";
 export const Sidebar = () => {
   const navigate = useNavigate();
 
+  const handleHome=async()=>{
+    navigate('/user-home');
+  }
   // Frontend-only logout
+
  const handleLogout = async () => {
   try {
     const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
@@ -48,20 +52,20 @@ export const Sidebar = () => {
     <div className="w-64 h-screen bg-white shadow-md p-4 flex flex-col">
       <h2 className="text-xl font-bold mb-6">Market Mania</h2>
 
-      <Button variant="ghost" className="flex items-center gap-2 mb-2">
-        <Home size={18} /> Profile
+      <Button variant="ghost" className="flex items-center gap-2 mb-2" onClick={() => navigate('/profile')}>
+        <User size={18} /> Profile
+      </Button>
+      <Button variant="ghost" className="flex items-center gap-2 mb-2"  onClick={handleHome}>
+        <BookOpen size={18} /> UserHome
       </Button>
       <Button variant="ghost" className="flex items-center gap-2 mb-2">
-        <User size={18} /> Learn
+        <Info size={18} /> About Us
       </Button>
       <Button variant="ghost" className="flex items-center gap-2 mb-2">
-        <BookOpen size={18} /> About Us
+        <Phone size={18} /> Contact Us
       </Button>
       <Button variant="ghost" className="flex items-center gap-2 mb-2">
-        <Info size={18} /> Contact Us
-      </Button>
-      <Button variant="ghost" className="flex items-center gap-2 mb-2">
-        <Phone size={18} /> How to Play
+        <Home size={18} /> How to Play
       </Button>
 
       <Button

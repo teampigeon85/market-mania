@@ -13,6 +13,7 @@ import googleauthRoutes from "./routes/googleauthRoutes.js";
 import emailauthRoutes from "./routes/emailauthRoutes.js";
 import { configurePassport } from "./controllers/googleauthControllers.js";
 import gameRoutes from "./routes/gameRoutes.js";
+import userRoutes from "./routes/userRoutes.js"; // Corrected import
 
 
 import { logoutUser } from "./controllers/userControllers.js";
@@ -167,6 +168,7 @@ app.use("/api/googleauth", googleauthRoutes);
 app.use("/api/emailauth", emailauthRoutes);
 
 app.use("/api/game",gameRoutes);
+app.use("/api/user", userRoutes); // Added this line to use the new routes
 
 
 app.post("/api/auth/logoutuser",logoutUser);

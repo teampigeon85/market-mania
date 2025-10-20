@@ -8,6 +8,8 @@ import UserHomePage from "./pages/UserHomePage";
 import GameLobby from './pages/GameLobby'; // Make sure this path is correct
 import LobbyPage from './pages/LobbyPage';
 import GameArena from './pages/GameArena';
+import ProfilePage from "./pages/ProfilePage";
+
 function App() {
   return (
     <Router>
@@ -16,7 +18,7 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/user-home" element={<UserHomePage />} />
-        
+        <Route path="/profile/" element={<ProfilePage />} />
         {/* New Route for creating/joining a game */}
      {/*}   <Route path="/lobby" element={<GameLobby />} />*/}
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
-import { Button } from './ui/button';
+import { Card, CardHeader, CardTitle, CardContent } from './ui/card.jsx';
+import { Button } from './ui/button.jsx';
 import { useNavigate } from 'react-router-dom';
 
 const FinalLeaderboard = ({ gameId, isOpen, userId }) => {
@@ -56,7 +56,7 @@ const FinalLeaderboard = ({ gameId, isOpen, userId }) => {
   };
 
   const handleExit = () => {
-    navigate('/lobby');
+    navigate('/user-home');
   };
 
   if (!isOpen) return null;
@@ -179,7 +179,7 @@ const FinalLeaderboard = ({ gameId, isOpen, userId }) => {
                       <div>
                         <div className="text-2xl font-bold text-purple-600">
                           {formatCurrency(
-                            leaderboard.reduce((sum, p) => sum + p.final_net_worth, 0) / leaderboard.length
+                            leaderboard.reduce((sum, p) => sum + parseFloat(p.final_net_worth), 0) / leaderboard.length
                           )}
                         </div>
                         <div className="text-sm text-gray-600">Average Score</div>
@@ -206,3 +206,4 @@ const FinalLeaderboard = ({ gameId, isOpen, userId }) => {
 };
 
 export default FinalLeaderboard;
+
