@@ -7,11 +7,42 @@ export const Sidebar = () => {
   const navigate = useNavigate();
 
   // Frontend-only logout
-  const handleLogout = () => {
+ const handleLogout = async () => {
+  try {
+    const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+    const user_id = storedUser.user_id;
+
+    const backend_url = "http://localhost:3000";
+
+    if (!user_id) {
+      console.warn("No user_id found in localStorage — skipping backend logout.");
+    } else {
+      console.log("Logging out user:", user_id);
+
+      const res = await fetch(`${backend_url}/api/auth/logoutuser`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id }),
+      });
+
+      const data = await res.json();
+      console.log("Logout response:", data);
+    }
+
+    // Clear local storage after backend confirmation
+    localStorage.removeItem("user");
+    localStorage.removeItem("redirectUrl");
+
+    navigate("/login");
+  } catch (err) {
+    console.error("Error during logout:", err);
+    // Still clear local storage and navigate, even if backend call fails
     localStorage.removeItem("user");
     localStorage.removeItem("redirectUrl");
     navigate("/login");
-  };
+  }
+};
+
 
   return (
     <div className="w-64 h-screen bg-white shadow-md p-4 flex flex-col">

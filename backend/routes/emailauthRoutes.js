@@ -2,7 +2,7 @@ import express from 'express';
 
 import { registerUser} from '../controllers/emailauthControllers.js';
 import { loginUser } from '../controllers/emailauthControllers.js';
-import { logoutUser } from '../controllers/emailauthControllers.js';
+
 
 
 
@@ -16,7 +16,6 @@ router.post('/login',loginUser);
 
 
 
-// Logout endpoint 
-router.post('/logout', logoutUser);
+
 
 export default router; 

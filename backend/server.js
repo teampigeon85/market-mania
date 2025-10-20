@@ -169,7 +169,7 @@ app.use("/api/emailauth", emailauthRoutes);
 app.use("/api/game",gameRoutes);
 
 
-app.post("/api/auth/logout",logoutUser);
+app.post("/api/auth/logoutuser",logoutUser);
 
 io.on('connection', (socket) => {
   console.log('a user connected');

@@ -83,6 +83,7 @@ export const googleAuthCallback = (req, res, next) => {
      // ✅ Safely encode user data for redirect
 const userData = encodeURIComponent(JSON.stringify({
   email: req.user.email,
+  user_id:req.user.user_id,
   full_name: req.user.full_name,
   google_id: req.user.google_id
 }));

@@ -47,17 +47,19 @@ export async function sql(strings, ...values) {
 
 export async function initialiseDatabase() {
   try {
-
     await sql`
-    CREATE TABLE IF NOT EXISTS users (
+  CREATE TABLE IF NOT EXISTS users (
     user_id SERIAL PRIMARY KEY,
     full_name VARCHAR(100) NOT NULL,
     email VARCHAR(150) UNIQUE NOT NULL,
     hashed_password TEXT,
     google_id VARCHAR(100),
-    last_login TIMESTAMP DEFAULT NOW()
-);
-    `;
+    isactive BOOLEAN DEFAULT FALSE,
+    last_login TIMESTAMP DEFAULT NOW(),
+    created_at TIMESTAMP DEFAULT NOW()
+  );
+`;
+
     await sql`
     CREATE TABLE IF NOT EXISTS game_chats (
         message_id SERIAL PRIMARY KEY,

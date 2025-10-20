@@ -43,7 +43,7 @@ export default function Navbar() {
         {/* Logo - outside the max-width container, pinned to left */}
         <div className="pl-4">
           <Link to="/" className="text-2xl font-bold text-gray-800">
-            SkillShare
+            MarketMania
           </Link>
         </div>
 
@@ -57,9 +57,6 @@ export default function Navbar() {
                 {user && (
                   <>
                     <Link to="/user-home" className={linkStyle('/user-home')}>User Home</Link>
-                    <Link to="/marketplace" className={linkStyle('/marketplace')}>Marketplace</Link>
-                    <Link to="/doubt" className={linkStyle('/doubt')}>Doubtplace</Link>
-                    <Link to="/profile" className={linkStyle('/profile')}>Profile</Link>
                   </>
                 )}
               </div>

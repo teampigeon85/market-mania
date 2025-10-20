@@ -68,7 +68,7 @@ export const createUser = async ({ email, full_name, hashed_password }) => {
 export const findUser = async (email) => {
   try {
     const user = await sql`
-      SELECT user_id, full_name, hashed_password, google_id
+      SELECT user_id, full_name, hashed_password, google_id,isactive
       FROM users
       WHERE email = ${email};
     `;
@@ -106,4 +106,12 @@ export const getUserById = async (user_id) => {
     console.error("Error while fetching user by ID:", error.message);
     throw error;
   }
+};
+
+export const setUserActiveStatus = async (user_id, status) => {
+  await sql`
+    UPDATE users
+    SET isactive = ${status}
+    WHERE user_id = ${user_id};
+  `;
 };
