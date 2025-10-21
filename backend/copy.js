@@ -1,3 +1,4 @@
+/*
 PORT=3000
 
 #psql 'postgresql://neondb_owner:npg_zYZsMqICf34L@ep-old-tooth-adaskohq-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
@@ -18,3 +19,5 @@ PGPASSWORD=postgres123
 
 
 CLIENT_URL='http://localhost:5173'
+
+*/
