@@ -50,7 +50,6 @@ export default function GameArena() {
   const [portfolioValue, setPortfolioValue] = useState(0);
   const [netWorth, setNetWorth] = useState(parseInt(roomSettings.initialMoney, 10));
 
-  // Refs to hold the latest state for submission
   const moneyRef = useRef(money);
   const portfolioValueRef = useRef(portfolioValue);
   const netWorthRef = useRef(netWorth);
@@ -62,10 +61,7 @@ export default function GameArena() {
   });
 
   const submitScore = useCallback(async (roundNumber) => {
-    if (!currentUserId || !gameId) {
-      return;
-    }
-    
+    if (!currentUserId || !gameId) return;
     setIsSubmittingScore(true);
     const scoreData = {
       userId: currentUserId,
@@ -74,18 +70,13 @@ export default function GameArena() {
       portfolioValue: portfolioValueRef.current,
       netWorth: netWorthRef.current
     };
-    
-    console.log('Submitting score for round', roundNumber, scoreData);
-    
     try {
       const response = await fetch(`http://localhost:3000/api/game/${gameId}/score`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(scoreData),
       });
-       if (!response.ok) {
-        throw new Error('Failed to submit score to server');
-      }
+       if (!response.ok) throw new Error('Failed to submit score to server');
     } catch (error) {
       console.error('Error submitting score:', error);
     } finally {
@@ -96,7 +87,6 @@ export default function GameArena() {
   useEffect(() => {
     const newSocket = io('http://localhost:3000');
     setSocket(newSocket);
-    
     newSocket.emit('join-lobby', gameId);
 
     const fetchInitialStocks = async () => {
@@ -104,7 +94,6 @@ export default function GameArena() {
         const res = await fetch(`http://localhost:3000/api/game/${gameId}/stocks`);
         if (!res.ok) throw new Error("Failed to fetch game stocks");
         const data = await res.json();
-
         const parsedData = data.map(stock => ({
           ...stock,
           price: parseFloat(stock.price),
@@ -114,11 +103,9 @@ export default function GameArena() {
         }));
         setInitialStocks(parsedData);
         setStocks(parsedData);
-        
         const initialHoldings = {};
         parsedData.forEach(s => initialHoldings[s.name] = 0);
         setHoldings(initialHoldings);
-
       } catch (error) {
         console.error(error);
       }
@@ -126,49 +113,51 @@ export default function GameArena() {
     fetchInitialStocks();
 
     newSocket.on('new-round', (newRound) => {
-        if (newRound > 1) {
-            submitScore(newRound - 1);
-        }
-        setRound(newRound);
+      if (newRound > 1) submitScore(newRound - 1);
+      setRound(newRound);
     });
-
-    newSocket.on('news-update', (newNotices) => {
-        setNotices(newNotices);
-    });
-    
+    newSocket.on('news-update', (newNotices) => setNotices(newNotices));
     newSocket.on('price-update', (updatedStocks) => {
-        setStocks(updatedStocks);
-        setShowRoundEndModal(true);
-        setTimeout(() => {
-            setShowRoundEndModal(false);
-            if (round >= 1) {
-                setIsRoundLeaderboardOpen(true);
-            }
-        }, 3000);
+      setStocks(updatedStocks);
+      setShowRoundEndModal(true);
+      setTimeout(() => {
+        setShowRoundEndModal(false);
+        if (round >= 1) setIsRoundLeaderboardOpen(true);
+      }, 3000);
     });
-    
     newSocket.on('game-over', () => {
-        setGameCompleted(true);
-        submitFinalScore();
+      setGameCompleted(true);
+      submitFinalScore();
     });
 
     return () => {
-        newSocket.off('new-round');
-        newSocket.off('news-update');
-        newSocket.off('price-update');
-        newSocket.off('game-over');
-        newSocket.disconnect();
+      newSocket.off('new-round');
+      newSocket.off('news-update');
+      newSocket.off('price-update');
+      newSocket.off('game-over');
+      newSocket.disconnect();
     }
   }, [gameId, submitScore]);
 
+  // --- SHORT/LONG ---: Updated portfolio and net worth calculation
   useEffect(() => {
     if (!stocks || stocks.length === 0) return;
-    const newPortfolioValue = stocks.reduce(
-        (total, stock) => total + (holdings[stock.name] || 0) * stock.price,
-        0
-    );
-    setPortfolioValue(newPortfolioValue);
-    setNetWorth(money + newPortfolioValue);
+
+    let longValue = 0;
+    let shortLiability = 0;
+
+    stocks.forEach(stock => {
+        const quantity = holdings[stock.name] || 0;
+        if (quantity > 0) {
+            longValue += quantity * stock.price;
+        } else if (quantity < 0) {
+            shortLiability += Math.abs(quantity) * stock.price;
+        }
+    });
+
+    const netPortfolioValue = longValue - shortLiability;
+    setPortfolioValue(netPortfolioValue);
+    setNetWorth(money + netPortfolioValue);
   }, [stocks, holdings, money]);
 
   useEffect(() => {
@@ -181,19 +170,13 @@ export default function GameArena() {
 
   const submitFinalScore = async () => {
     if (!currentUserId || !gameId) return;
-    
-    // Submit score for the final round before showing final leaderboard
     await submitScore(parseInt(roomSettings.numRounds, 10));
-
     setIsSubmittingScore(true);
     try {
       await fetch(`http://localhost:3000/api/game/${gameId}/final-score`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: currentUserId,
-          finalNetWorth: netWorthRef.current
-        }),
+        body: JSON.stringify({ userId: currentUserId, finalNetWorth: netWorthRef.current }),
       });
       setIsFinalLeaderboardOpen(true);
     } catch (error) {
@@ -212,60 +195,104 @@ export default function GameArena() {
     setTimeout(() => setFeedback({ message: "", type: "" }), 3000);
   };
 
-  const executeTrade = useCallback(
-    (stockName, quantity, sign) => {
-      const numQuantity = parseInt(quantity, 10);
-      if (isNaN(numQuantity) || numQuantity <= 0)
-        return { success: false, message: "Invalid quantity." };
+  // --- SHORT/LONG ---: Updated trading logic to handle long and short positions
+  const buyStock = useCallback((stockName, quantity) => {
+    const numQuantity = parseInt(quantity, 10);
+    if (isNaN(numQuantity) || numQuantity <= 0) return { success: false, message: "Invalid quantity." };
 
-      let stockToTrade = stocks.find((s) => s.name === stockName);
-      if (!stockToTrade) return { success: false, message: "Stock not found."};
+    const stockToTrade = stocks.find((s) => s.name === stockName);
+    if (!stockToTrade) return { success: false, message: "Stock not found." };
+    
+    const cost = stockToTrade.price * numQuantity;
+    const currentHolding = holdings[stockName] || 0;
 
-      const cost = stockToTrade.price * numQuantity;
+    // If we are long, or have no position, buying costs money from our cash pile
+    if (currentHolding >= 0 && money < cost) {
+      return { success: false, message: "Not enough money!" };
+    }
 
-      if (sign === 1 && money < cost) return { success: false, message: "Not enough money!" };
-      if (sign === -1 && (holdings[stockName] || 0) < numQuantity)
-        return { success: false, message: "Not enough shares." };
+    // Buying costs money (to buy shares from market), even if it's to cover a short
+    setMoney((m) => m - cost);
+    setHoldings((h) => ({
+      ...h,
+      [stockName]: (h[stockName] || 0) + numQuantity,
+    }));
+    
+    const action = currentHolding < 0 ? "Covered" : "Bought";
+    return { success: true, message: `${action} ${numQuantity} of ${stockName}.` };
+  }, [money, stocks, holdings]);
 
-      setMoney((m) => m - cost * sign);
-      setHoldings((h) => ({
-        ...h,
-        [stockName]: (h[stockName] || 0) + numQuantity * sign,
-      }));
+  const sellStock = useCallback((stockName, quantity) => {
+    const numQuantity = parseInt(quantity, 10);
+    if (isNaN(numQuantity) || numQuantity <= 0) return { success: false, message: "Invalid quantity." };
+    
+    const stockToTrade = stocks.find((s) => s.name === stockName);
+    if (!stockToTrade) return { success: false, message: "Stock not found." };
 
-      const action = sign === 1 ? "Bought" : "Sold";
-      return { success: true, message: `${action} ${numQuantity} of ${stockName}.` };
-    },
-    [money, stocks, holdings]
-  );
+    const currentHolding = holdings[stockName] || 0;
+    if (currentHolding < numQuantity) {
+      return { success: false, message: "Not enough shares to sell." };
+    }
 
-  const buyStock = (stockName, quantity) => executeTrade(stockName, quantity, 1);
-  const sellStock = (stockName, quantity) => executeTrade(stockName, quantity, -1);
+    const proceeds = stockToTrade.price * numQuantity;
+    setMoney((m) => m + proceeds);
+    setHoldings((h) => ({
+      ...h,
+      [stockName]: currentHolding - numQuantity,
+    }));
+
+    return { success: true, message: `Sold ${numQuantity} of ${stockName}.` };
+  }, [stocks, holdings]);
+
+  const shortStock = useCallback((stockName, quantity) => {
+    const numQuantity = parseInt(quantity, 10);
+    if (isNaN(numQuantity) || numQuantity <= 0) return { success: false, message: "Invalid quantity." };
+
+    const stockToTrade = stocks.find((s) => s.name === stockName);
+    if (!stockToTrade) return { success: false, message: "Stock not found." };
+
+    // For simplicity, no margin check. In a real scenario, you'd check if player has enough collateral.
+    const proceeds = stockToTrade.price * numQuantity;
+
+    // When shorting, you receive cash immediately from selling the "borrowed" shares
+    setMoney((m) => m + proceeds);
+    // Holdings become negative
+    setHoldings((h) => ({
+      ...h,
+      [stockName]: (h[stockName] || 0) - numQuantity,
+    }));
+
+    return { success: true, message: `Shorted ${numQuantity} of ${stockName}.` };
+  }, [stocks, holdings]);
+
 
   const handleAction = (actionFn, stockName) => {
     const result = actionFn(stockName, quantity[stockName] || 0);
     showFeedback(result.message, result.success ? "success" : "error");
   };
 
+  // --- SHORT/LONG ---: Updated holdingsList to identify position type
   const holdingsList = Object.entries(holdings)
-    .filter(([_, qty]) => qty > 0)
-    .map(([name, qty]) => ({
-      name, qty, value: (stocks.find((s) => s.name === name)?.price || 0) * qty,
-    }));
+    .filter(([_, qty]) => qty !== 0)
+    .map(([name, qty]) => {
+        const stock = stocks.find((s) => s.name === name);
+        const currentPrice = stock?.price || 0;
+        const value = currentPrice * qty; // This will be negative for short positions
+        const positionType = qty > 0 ? "Long" : "Short";
+        return { name, qty, value, positionType, currentPrice };
+    });
 
-  if (!initialStocks) {
-    return <div className="flex items-center justify-center h-screen">Loading game data...</div>
-  }
-  
+  if (!initialStocks) return <div className="flex items-center justify-center h-screen">Loading game data...</div>
+
   return (
     <div className="flex flex-col md:flex-row h-screen bg-gray-50 font-sans text-gray-800">
-      {/* Sidebar */}
       <aside className="w-full md:w-1/3 lg:w-1/4 p-4 bg-white border-r border-gray-200 flex flex-col gap-4">
         <h2 className="text-2xl font-bold text-indigo-700">Dalal Street Simulator</h2>
         <div className="text-base p-3 bg-gray-100 rounded-lg shadow-inner">
           <p>Round: <span className="font-semibold">{round}</span> of <span className="font-semibold">{roomSettings.numRounds}</span></p>
           <p>Cash: <span className="font-semibold text-green-600">₹{money.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</span></p>
-          <p>Holdings: <span className="font-semibold">₹{portfolioValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</span></p>
+          {/* --- SHORT/LONG ---: Changed "Holdings" to "Portfolio Value" for clarity */}
+          <p>Portfolio Value: <span className="font-semibold">₹{portfolioValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</span></p>
           <p className="text-lg font-bold">Net Worth: <span className="text-indigo-800">₹{netWorth.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</span></p>
         </div>
         <ScrollArea className="flex-1 -mx-4 px-4">
@@ -280,12 +307,17 @@ export default function GameArena() {
               <CardContent className="flex flex-col gap-2">
                 <div className="text-xs text-gray-500 flex justify-between">
                   <span>PE: {stock.pe}</span>
-                  <span className="font-semibold">Owned: {holdings[stock.name] || 0}</span>
+                  {/* --- SHORT/LONG ---: Show position type in owned display */}
+                  <span className="font-semibold">
+                    Position: {holdings[stock.name] > 0 ? `Long ${holdings[stock.name]}` : holdings[stock.name] < 0 ? `Short ${Math.abs(holdings[stock.name])}`: 'None'}
+                  </span>
                 </div>
                 <div className="flex gap-2 items-center">
-                  <Input type="text" placeholder="Qty" className="w-20 text-center" value={quantity[stock.name] || ""} onChange={(e) => handleQuantityChange(stock.name, e.target.value)} />
+                  <Input type="text" placeholder="Qty" className="w-16 text-center" value={quantity[stock.name] || ""} onChange={(e) => handleQuantityChange(stock.name, e.target.value)} />
                   <Button onClick={() => handleAction(buyStock, stock.name)}>Buy</Button>
                   <Button variant="destructive" onClick={() => handleAction(sellStock, stock.name)}>Sell</Button>
+                  {/* --- SHORT/LONG ---: Added a Short button */}
+                  <Button variant="secondary" onClick={() => handleAction(shortStock, stock.name)}>Short</Button>
                 </div>
               </CardContent>
             </Card>
@@ -293,7 +325,6 @@ export default function GameArena() {
         </ScrollArea>
       </aside>
 
-      {/* Main Area */}
       <main className="flex-1 p-6 flex flex-col gap-6">
         <div className="flex items-center justify-end gap-4">
             <Button 
@@ -301,7 +332,7 @@ export default function GameArena() {
               onClick={() => setIsRoundLeaderboardOpen(true)}
               disabled={isSubmittingScore || round < 1}
             >
-              🏆 Round Leaderboard
+              📊 Round Leaderboard
             </Button>
            <Button variant="secondary" onClick={() => setIsChatOpen(true)}>💬 Chat</Button>
         </div>
@@ -322,16 +353,24 @@ export default function GameArena() {
             <ScrollArea className="h-full">
               {holdingsList.length > 0 ? (
                 <ul className="divide-y divide-gray-200">
+                  {/* --- SHORT/LONG ---: Updated portfolio rendering */}
                   {holdingsList.map((item) => (
-                    <li key={item.name} className="flex justify-between items-center py-2">
-                      <span className="font-bold text-base">{item.name}</span>
-                      <span>{item.qty} shares</span>
-                      <span className="text-gray-800 font-semibold">₹{item.value.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</span>
+                    <li key={item.name} className={`flex justify-between items-center p-2 rounded-md ${item.positionType === 'Short' ? 'bg-red-50' : 'bg-green-50'}`}>
+                      <div>
+                        <span className="font-bold text-base">{item.name}</span>
+                        <span className={`ml-2 text-xs font-semibold px-2 py-0.5 rounded-full ${item.positionType === 'Short' ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'}`}>
+                          {item.positionType}
+                        </span>
+                      </div>
+                      <span>{Math.abs(item.qty)} shares</span>
+                      <span className={`font-semibold ${item.value >= 0 ? 'text-green-800' : 'text-red-800'}`}>
+                        Value: ₹{item.value.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+                      </span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-center text-gray-500 pt-10">You do not own any stocks. Start buying!</p>
+                <p className="text-center text-gray-500 pt-10">You do not have any open positions. Start trading!</p>
               )}
             </ScrollArea>
           </Card>
@@ -353,7 +392,6 @@ export default function GameArena() {
         </div>
       )}
 
-      {/* Round Leaderboard */}
       <RoundLeaderboard
         gameId={gameId}
         roundNumber={round > 1 ? round - 1 : 1}
@@ -362,7 +400,6 @@ export default function GameArena() {
         userId={currentUserId}
       />
 
-      {/* Final Leaderboard */}
       <FinalLeaderboard
         gameId={gameId}
         isOpen={isFinalLeaderboardOpen}
