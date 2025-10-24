@@ -85,74 +85,71 @@ const runMarketEvents = (gameId) => {
     const gameState = gameStates[gameId];
     if (!gameState) return;
 
+    // First, apply price changes from last round's events
+    if (gameState.roundEvents) {
+        let updatedStocks = gameState.stocks;
+        gameState.roundEvents.forEach(event => {
+            if (event.company) { // Company event
+                updatedStocks = updatedStocks.map((stock) => {
+                  if (stock.name === event.company) {
+                    const priceChangePercentage = event.impact.priceChange / 100;
+                    return { ...stock, price: stock.price * (1 + priceChangePercentage) };
+                  }
+                  return stock;
+                });
+            } else if (event.sectorImpact) { // General/Historical event with sectorImpact
+                updatedStocks = updatedStocks.map((stock) => {
+                  let priceChangePercentage = event.movePercent || 0;
+                  let sectorAffected = false;
+                  for (const sector of stock.sectors) {
+                    if (event.sectorImpact[sector]) {
+                      priceChangePercentage = event.sectorImpact[sector];
+                      sectorAffected = true;
+                      break;
+                    }
+                  }
+                  if (priceChangePercentage !== 0 && !sectorAffected && event.movePercent) {
+                    return { ...stock, price: stock.price * (1 + priceChangePercentage / 100) };
+                  } else if (sectorAffected) {
+                    return { ...stock, price: stock.price * (1 + priceChangePercentage / 100) };
+                  }
+                  return stock;
+                });
+            }
+        });
+        
+        updatedStocks = updatedStocks.map((stock) => {
+            const randomFluctuation = (Math.random() - 0.5) * (stock.volatility || 0.02);
+            const newPrice = stock.price * (1 + randomFluctuation);
+            return { ...stock, price: Math.max(0.01, newPrice) };
+        });
+        gameState.stocks = updatedStocks;
+        io.to(gameId).emit('price-update', updatedStocks);
+    }
+    
+    // Now, generate new events for the current round
     let notices = [];
-    let updatedStocks = gameState.stocks;
-
+    let newEvents = [];
     for(let i=0; i<5; i++) {
         let eventNotice = "";
         const eventType = Math.random();
+        let event;
 
         if (eventType < 0.6 && gameState.companyEvents.length > 0) {
-            const event = gameState.companyEvents[Math.floor(Math.random() * gameState.companyEvents.length)];
+            event = gameState.companyEvents[Math.floor(Math.random() * gameState.companyEvents.length)];
             eventNotice = `[${event.company}] ${event.event}`;
-            updatedStocks = updatedStocks.map((stock) => {
-              if (stock.name === event.company) {
-                const priceChangePercentage = event.impact.priceChange / 100;
-                return { ...stock, price: stock.price * (1 + priceChangePercentage) };
-              }
-              return stock;
-            });
         } else if (eventType < 0.95) {
-            const event = GENERAL_EVENTS[Math.floor(Math.random() * GENERAL_EVENTS.length)];
+            event = GENERAL_EVENTS[Math.floor(Math.random() * GENERAL_EVENTS.length)];
             eventNotice = `[SECTOR NEWS] ${event.event}`;
-            updatedStocks = updatedStocks.map((stock) => {
-              let priceChangePercentage = 0;
-              for (const sector of stock.sectors) {
-                if (event.sectorImpact[sector]) {
-                  priceChangePercentage += event.sectorImpact[sector];
-                }
-              }
-              if (priceChangePercentage !== 0) {
-                return { ...stock, price: stock.price * (1 + priceChangePercentage / 100) };
-              }
-              return stock;
-            });
         } else {
-            const event = HISTORICAL_EVENTS[Math.floor(Math.random() * HISTORICAL_EVENTS.length)];
+            event = HISTORICAL_EVENTS[Math.floor(Math.random() * HISTORICAL_EVENTS.length)];
             eventNotice = `[MARKET SHOCK] ${event.event}`;
-            updatedStocks = updatedStocks.map((stock) => {
-              let priceChangePercentage = event.movePercent;
-              for (const sector of stock.sectors) {
-                if (event.sectorImpact[sector]) {
-                  priceChangePercentage = event.sectorImpact[sector];
-                  break;
-                }
-              }
-              return { ...stock, price: stock.price * (1 + priceChangePercentage / 100) };
-            });
         }
-
-        const isGood =
-          eventNotice.toLowerCase().includes("strong") ||
-          eventNotice.toLowerCase().includes("boom") ||
-          eventNotice.toLowerCase().includes("wins");
-        const isBad =
-          eventNotice.toLowerCase().includes("crash") ||
-          eventNotice.toLowerCase().includes("scrutiny") ||
-          eventNotice.toLowerCase().includes("shock");
-        const noticePrefix = isGood ? "📈" : isBad ? "📉" : "📰";
-        notices.push(`${noticePrefix} ${eventNotice}`);
+        newEvents.push(event);
+        notices.push(eventNotice);
     }
 
-
-    updatedStocks = updatedStocks.map((stock) => {
-        const randomFluctuation = (Math.random() - 0.5) * (stock.volatility || 0.02);
-        const newPrice = stock.price * (1 + randomFluctuation);
-        return { ...stock, price: Math.max(0.01, newPrice) };
-    });
-
-    gameState.stocks = updatedStocks;
-    io.to(gameId).emit('price-update', updatedStocks);
+    gameState.roundEvents = newEvents;
     io.to(gameId).emit('news-update', notices);
 }
 
@@ -206,7 +203,7 @@ io.on('connection', (socket) => {
         const filteredCompanyEvents = COMPANY_EVENTS.filter(event => companyNames.has(event.company));
 
         gameStates[roomId] = {
-            round: 1,
+            round: 0,
             stocks: stocks.map(s => ({
                 name: s.stock_name,
                 price: parseFloat(s.price),
@@ -217,31 +214,35 @@ io.on('connection', (socket) => {
             })),
             companyEvents: filteredCompanyEvents,
             interval: null,
+            roundEvents: null
         };
 
         const gameLoop = () => {
             const gameState = gameStates[roomId];
             if (!gameState) {
-                console.error(`Game state for ${roomId} disappeared.`);
                 if(gameStates[roomId] && gameStates[roomId].interval) clearInterval(gameStates[roomId].interval);
                 return;
             }
 
-            console.log(`Running round ${gameState.round} for game ${roomId}`);
-            io.to(roomId).emit('new-round', gameState.round);
-            runMarketEvents(roomId);
-
             gameState.round++;
+
             if (gameState.round > numRounds) {
                 console.log(`Game ${roomId} finished.`);
                 clearInterval(gameState.interval);
                 io.to(roomId).emit('game-over');
                 delete gameStates[roomId];
+                return;
             }
+            
+            console.log(`Running round ${gameState.round} for game ${roomId}`);
+            io.to(roomId).emit('new-round', gameState.round);
+            runMarketEvents(roomId);
         };
-
-        gameLoop();
-        gameStates[roomId].interval = setInterval(gameLoop, roundTimeMs);
+        
+        setTimeout(() => {
+            gameLoop();
+            gameStates[roomId].interval = setInterval(gameLoop, roundTimeMs);
+        }, 1000);
 
     } catch (error) {
         console.error(`Error starting game ${roomId}:`, error);

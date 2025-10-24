@@ -310,9 +310,7 @@ export default function GameArena() {
           <h2 className="text-2xl font-bold mb-2">Market News Feed</h2>
           <ScrollArea className="h-80 border rounded-lg p-3 bg-white shadow-inner">
             {notices.map((notice, index) => {
-              const isGood = notice.includes("📈");
-              const isBad = notice.includes("📉");
-              const colorClass = isGood ? "bg-green-50 text-green-800" : isBad ? "bg-red-50 text-red-800" : "bg-gray-50 text-gray-700";
+              const colorClass = "bg-gray-50 text-gray-700";
               return (<p key={index} className={`mb-2 p-2 text-sm rounded-md ${colorClass}`}>{notice}</p>);
             })}
           </ScrollArea>
@@ -349,7 +347,7 @@ export default function GameArena() {
       {showRoundEndModal && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 animate-fade-in">
             <div className="bg-white p-10 rounded-xl shadow-2xl text-center transform animate-scale-in">
-                <h2 className="text-4xl font-bold text-indigo-700">Round {round} Completed!</h2>
+                <h2 className="text-4xl font-bold text-indigo-700">Round {round - 1} Completed!</h2>
                 <p className="mt-2 text-gray-600">Updating prices and preparing next round...</p>
             </div>
         </div>
